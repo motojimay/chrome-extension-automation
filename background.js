@@ -133,6 +133,37 @@ class KakakuAutomation {
     }
   }
 
+  // フォームを直接サブミット
+  async submitForm(formSelector) {
+    await this.sendCommand('Runtime.evaluate', {
+      expression: `
+        const form = document.querySelector('${formSelector}');
+        if (form) {
+          form.submit();
+          true;
+        } else {
+          false;
+        }
+      `
+    });
+  }
+
+  // JavaScript経由でクリックイベントを発火
+  async clickWithJS(selector) {
+    await this.waitForSelector(selector);
+    return await this.sendCommand('Runtime.evaluate', {
+      expression: `
+        const element = document.querySelector('${selector}');
+        if (element) {
+          element.click();
+          true;
+        } else {
+          false;
+        }
+      `
+    });
+  }
+
   // テキストを入力
   async type(selector, text) {
     await this.waitForSelector(selector);
@@ -194,9 +225,36 @@ class KakakuAutomation {
     await this.type('#query', keyword);
     await this.sleep(1000);
 
-    // Enterキーを押して検索実行
+    // 検索ボタンをクリックして検索実行（複数の方法を試行）
     console.log('⏳ 検索実行中...');
-    await this.pressEnter();
+    
+    try {
+      // 方法1: JavaScriptでクリックイベントを発火
+      console.log('方法1: JavaScriptクリックを試行...');
+      const clickResult = await this.clickWithJS('#main_search_button');
+      if (clickResult.result.value) {
+        console.log('✅ JavaScriptクリック成功');
+      } else {
+        throw new Error('JavaScriptクリック失敗');
+      }
+    } catch (error) {
+      console.log('方法1失敗、方法2を試行:', error.message);
+      
+      try {
+        // 方法2: フォームを直接サブミット
+        console.log('方法2: フォームサブミットを試行...');
+        await this.submitForm('#FrmKeyword');
+        console.log('✅ フォームサブミット成功');
+      } catch (error2) {
+        console.log('方法2失敗、方法3を試行:', error2.message);
+        
+        // 方法3: 物理的なマウスクリック
+        console.log('方法3: 物理クリックを試行...');
+        await this.click('#main_search_button');
+        console.log('✅ 物理クリック完了');
+      }
+    }
+    
     await this.waitForNavigation();
     await this.sleep(3000);
 
