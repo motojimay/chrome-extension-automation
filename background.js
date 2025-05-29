@@ -12,10 +12,99 @@ class KakakuAutomation {
         if (chrome.runtime.lastError) {
           reject(new Error(chrome.runtime.lastError.message));
         } else {
+          // デバッグバーを非表示にする
+          this.hideDebuggerBar();
           resolve();
         }
       });
     });
+  }
+
+  // デバッグバーを非表示にする
+  async hideDebuggerBar() {
+    try {
+      // CSS経由でデバッグバーを非表示
+      await this.sendCommand('Runtime.evaluate', {
+        expression: `
+          // デバッグバーのスタイルを非表示に設定
+          const style = document.createElement('style');
+          style.innerHTML = \`
+            [data-devtools-theme] {
+              display: none !important;
+            }
+            /* Chrome のデバッグバーを非表示 */
+            body > div[style*="background-color: rgb(255, 249, 196)"] {
+              display: none !important;
+            }
+            /* その他のデバッグ関連要素 */
+            div[style*="position: fixed"][style*="top: 0px"][style*="left: 0px"][style*="right: 0px"] {
+              display: none !important;
+            }
+          \`;
+          document.head.appendChild(style);
+          
+          // 既存のデバッグバーを削除
+          const debugBars = document.querySelectorAll('div[style*="background-color: rgb(255, 249, 196)"]');
+          debugBars.forEach(bar => bar.remove());
+          
+          // MutationObserverで動的に追加されるデバッグバーも監視
+          const observer = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+              mutation.addedNodes.forEach((node) => {
+                if (node.nodeType === 1 && node.style && 
+                    node.style.backgroundColor === 'rgb(255, 249, 196)') {
+                  node.style.display = 'none';
+                }
+              });
+            });
+          });
+          observer.observe(document.body, { childList: true, subtree: true });
+          
+          console.log('Debug bar hidden successfully');
+          true;
+        `
+      });
+
+      // Page.addScriptToEvaluateOnNewDocumentでページ読み込み時にも適用
+      await this.sendCommand('Page.addScriptToEvaluateOnNewDocument', {
+        source: `
+          // ページ読み込み時にデバッグバーを非表示
+          (function() {
+            const hideDebugBar = () => {
+              const style = document.createElement('style');
+              style.innerHTML = \`
+                [data-devtools-theme] {
+                  display: none !important;
+                }
+                body > div[style*="background-color: rgb(255, 249, 196)"] {
+                  display: none !important;
+                }
+                div[style*="position: fixed"][style*="top: 0px"][style*="left: 0px"][style*="right: 0px"] {
+                  display: none !important;
+                }
+              \`;
+              document.head.appendChild(style);
+              
+              // 既存のデバッグバーを削除
+              const debugBars = document.querySelectorAll('div[style*="background-color: rgb(255, 249, 196)"]');
+              debugBars.forEach(bar => bar.remove());
+            };
+            
+            if (document.readyState === 'loading') {
+              document.addEventListener('DOMContentLoaded', hideDebugBar);
+            } else {
+              hideDebugBar();
+            }
+            
+            // 定期的にチェック
+            setInterval(hideDebugBar, 500);
+          })();
+        `
+      });
+
+    } catch (error) {
+      console.log('デバッグバーの非表示処理でエラー:', error);
+    }
   }
 
   // デバッガーをデタッチ
