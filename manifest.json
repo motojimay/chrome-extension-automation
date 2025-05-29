@@ -1,0 +1,24 @@
+{
+  "manifest_version": 3,
+  "name": "価格.com 自動検索",
+  "version": "1.0",
+  "description": "Chrome DevTools Protocolを使用した価格.com自動検索",
+  "permissions": [
+    "debugger",
+    "activeTab",
+    "tabs"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "価格.com 自動検索"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"]
+    }
+  ]
+}
